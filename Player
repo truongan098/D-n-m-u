@@ -1,0 +1,110 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Player : MonoBehaviour
+{
+    public float speed = 5f;
+    public float jumpForce = 7f;
+    public float climbSpeed = 3f;
+    private bool isGrounded;
+    private bool isClimbing;
+    private float gravityScale;
+    private int jumpCount;
+    public int maxJumps = 2; // Số lần nhảy tối đa
+
+    private Rigidbody2D rb;
+    private SpriteRenderer sr;
+
+    void Start()
+    {
+        rb = GetComponent<Rigidbody2D>();
+        sr = GetComponent<SpriteRenderer>();
+        gravityScale = rb.gravityScale;
+    }
+
+    void Update()
+    {
+        Move();
+        Jump();
+        Climb();
+    }
+
+    void Move()
+    {
+        float moveInput = Input.GetAxis("Horizontal");
+        rb.velocity = new Vector2(moveInput * speed, rb.velocity.y);
+
+        // Lật sprite của nhân vật dựa trên hướng di chuyển
+        if (moveInput > 0)
+        {
+            sr.flipX = false;
+        }
+        else if (moveInput < 0)
+        {
+            sr.flipX = true;
+        }
+    }
+
+    void Jump()
+    {
+        if (Input.GetButtonDown("Jump") && (isGrounded || jumpCount < maxJumps))
+        {
+            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            jumpCount++;
+            isGrounded = false;
+        }
+    }
+
+    void Climb()
+    {
+        if (isClimbing)
+        {
+            float moveInput = Input.GetAxis("Vertical");
+            rb.velocity = new Vector2(rb.velocity.x, moveInput * climbSpeed);
+        }
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            isGrounded = true;
+            jumpCount = 0; // Đặt lại số lần nhảy khi chạm đất
+        }
+        else if (collision.gameObject.CompareTag("Enemy"))
+        {
+            float yOffset = transform.position.y - collision.transform.position.y;
+            if (yOffset > 0.5f) // Điều chỉnh giá trị này để phù hợp với kích thước quái vật và nhân vật
+            {
+                rb.velocity = new Vector2(rb.velocity.x, jumpForce); // Nhảy lên khi đạp đầu quái vật
+            }
+        }
+    }
+
+    private void OnCollisionExit2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            isGrounded = false;
+        }
+    }
+
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.gameObject.CompareTag("Ladder"))
+        {
+            isClimbing = true;
+            rb.gravityScale = 0; // Tắt trọng lực khi leo cầu thang
+        }
+    }
+
+    private void OnTriggerExit2D(Collider2D collision)
+    {
+        if (collision.gameObject.CompareTag("Ladder"))
+        {
+            isClimbing = false;
+            rb.gravityScale = gravityScale; // Khôi phục trọng lực khi ra khỏi cầu thang
+        }
+    }
+}
