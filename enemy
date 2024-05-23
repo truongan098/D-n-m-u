@@ -1,0 +1,110 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Enemy : MonoBehaviour
+{
+    public float deathForce = 10f;
+    public float patrolSpeed = 2f;
+    public float chaseSpeed = 5f;
+    public float patrolDistance = 5f;
+    public Transform groundDetection;
+    public LayerMask playerLayer;
+    public float detectionRange = 5f;
+
+    private bool movingRight = true;
+    private Vector2 patrolStartPoint;
+    private Rigidbody2D rb;
+    private Transform player;
+
+    void Start()
+    {
+        rb = GetComponent<Rigidbody2D>();
+        patrolStartPoint = transform.position;
+    }
+
+    void Update()
+    {
+        Patrol();
+        DetectPlayer();
+    }
+
+    void Patrol()
+    {
+        if (movingRight)
+        {
+            rb.velocity = new Vector2(patrolSpeed, rb.velocity.y);
+        }
+        else
+        {
+            rb.velocity = new Vector2(-patrolSpeed, rb.velocity.y);
+        }
+
+        RaycastHit2D groundInfo = Physics2D.Raycast(groundDetection.position, Vector2.down, 1f);
+        if (!groundInfo.collider)
+        {
+            if (movingRight)
+            {
+                transform.eulerAngles = new Vector3(0, -180, 0);
+                movingRight = false;
+            }
+            else
+            {
+                transform.eulerAngles = new Vector3(0, 0, 0);
+                movingRight = true;
+            }
+        }
+
+        // Giới hạn khoảng cách tuần tra
+        if (Vector2.Distance(transform.position, patrolStartPoint) >= patrolDistance)
+        {
+            movingRight = !movingRight;
+            transform.eulerAngles = new Vector3(0, movingRight ? 0 : -180, 0);
+        }
+    }
+
+    void DetectPlayer()
+    {
+        RaycastHit2D playerInfo = Physics2D.Raycast(transform.position, movingRight ? Vector2.right : Vector2.left, detectionRange, playerLayer);
+        if (playerInfo.collider != null)
+        {
+            player = playerInfo.collider.transform;
+            ChasePlayer();
+        }
+    }
+
+    void ChasePlayer()
+    {
+        if (player != null)
+        {
+            float step = chaseSpeed * Time.deltaTime;
+            transform.position = Vector2.MoveTowards(transform.position, new Vector2(player.position.x, transform.position.y), step);
+        }
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Player"))
+        {
+            // Kiểm tra nếu nhân vật đạp đầu quái vật
+            float yOffset = collision.transform.position.y - transform.position.y;
+            if (yOffset > 0.5f) // Điều chỉnh giá trị này để phù hợp với kích thước quái vật và nhân vật
+            {
+                Die();
+            }
+        }
+    }
+
+    void Die()
+    {
+        // Logic xử lý khi quái vật chết
+        Debug.Log("Enemy died!");
+        Destroy(gameObject); // Tiêu diệt quái vật
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.red;
+        Gizmos.DrawLine(transform.position, transform.position + (movingRight ? Vector3.right : Vector3.left) * detectionRange);
+    }
+}
